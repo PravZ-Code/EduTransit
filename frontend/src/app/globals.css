@@ -1,0 +1,357 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Citymapper Design System Tokens (.agents/citymapper/DESIGN.md) */
+    --cm-dark-canvas: #0C0E14;
+    --cm-dark-surface1: #15171F;
+    --cm-dark-surface2: #1E212B;
+    --cm-dark-divider: #282C38;
+    --cm-text-primary: #ECEEF3;
+    --cm-text-secondary: #98A0AE;
+    --cm-text-tertiary: #646C7A;
+    --cm-blue: #2B5BFF;
+    --cm-blue-bright: #4D7BFF;
+    --cm-go-green: #00C281;
+    --cm-mode-walk: #00B894;
+    --cm-mode-bus: #E8453C;
+    --cm-mode-tube: #2B5BFF;
+    --cm-mode-rail: #8E44D8;
+    --cm-mode-bike: #00A8C5;
+    --cm-mode-cab: #FFB400;
+    --cm-disruption: #FF8A00;
+  }
+
+  html,
+  body {
+    background-color: #0C0E14;
+    color: #ECEEF3;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    user-select: none;
+  }
+
+  .mono-telemetry,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ============ Entrance & Feedback Animations ============ */
+@keyframes et-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes et-toast-in {
+  from { opacity: 0; transform: translate(-50%, -16px) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes et-modal-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes et-slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes et-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes et-ping-soft {
+  0% { transform: scale(1); opacity: 0.9; }
+  70% { transform: scale(2.1); opacity: 0; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+.anim-fade-in { animation: et-fade-in 0.25s ease-out both; }
+.anim-toast-in { animation: et-toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-modal-in { animation: et-modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-slide-in-right { animation: et-slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 40%, #E2E8F0 60%);
+  background-size: 800px 100%;
+  animation: et-shimmer 1.4s linear infinite;
+}
+
+.glass-panel {
+  background: color-mix(in srgb, white 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* ============ Custom 3D Vehicle Marker Styles ============ */
+.bus-marker-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform-origin: center center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.bus-halo {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bus-halo.on-time {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(16, 185, 129, 0) 70%);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+.bus-halo.delayed {
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.5) 0%, rgba(245, 158, 11, 0) 75%);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+  animation: pulse-delay 2s infinite ease-in-out;
+}
+
+.bus-halo.deviation {
+  background: radial-gradient(circle, rgba(220, 38, 38, 0.6) 0%, rgba(220, 38, 38, 0) 80%);
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.8);
+  animation: pulse-sos 1s infinite alternate;
+}
+
+@keyframes pulse-delay {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+@keyframes pulse-sos {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+.bus-3d-body {
+  position: relative;
+  z-index: 2;
+  width: 44px;
+  height: 24px;
+  background: linear-gradient(180deg, #FACC15 0%, #EAB308 60%, #CA8A04 100%);
+  border: 1.5px solid #713F12;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bus-marker-container:hover .bus-3d-body {
+  transform: scale(1.12);
+}
+
+.bus-marker-container.selected .bus-3d-body {
+  outline: 2px solid var(--cm-blue-bright, #4D7BFF);
+  outline-offset: 3px;
+}
+
+.bus-windshield {
+  width: 6px;
+  height: 16px;
+  background: #0284C7;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+.bus-label-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #1E293B;
+  letter-spacing: -0.5px;
+}
+
+.gold-star-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #FFFBEB;
+  border: 1px solid #F59E0B;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+}
+
+/* ============ Stop Marker Styles ============ */
+.stop-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid #D84E55;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.stop-pin:hover {
+  transform: scale(1.3);
+}
+
+.stop-pin.sweep-required {
+  border-color: #EA580C;
+  background: #FFEDD5;
+  animation: pulse-delay 1.8s infinite;
+}
+
+/* Live connection dot */
+.live-dot {
+  position: relative;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: et-ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* ============ Accessibility: Reduced Motion ============ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============ Scrollbar customizations ============ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ============ Citymapper Design Tokens ============ */
+:root {
+  /* Brand accent & GO lock */
+  --cm-blue: #2B5BFF;
+  --cm-blue-bright: #4D7BFF;
+  --cm-blue-pressed: #1E45CC;
+  --cm-go-green: #00C281;
+
+  /* Transit mode colors (theme-invariant, the brand's soul) */
+  --cm-walk: #00B894;
+  --cm-bus: #E8453C;
+  --cm-metro: #2B5BFF;
+  --cm-rail: #8E44D8;
+  --cm-bike: #00A8C5;
+  --cm-cab: #FFB400;
+
+  /* Semantic */
+  --cm-disruption: #FF8A00;
+  --cm-live: #00C281;
+
+  /* Dark canvas ramp (deep blue-black, never pure black) */
+  --cm-dark-canvas: #0C0E14;
+  --cm-dark-surface-1: #15171F;
+  --cm-dark-surface-2: #1E212B;
+  --cm-dark-divider: #282C38;
+}
+
+/* Citymapper signifiers: ETAs & minutes are the loudest type — tabular, chunky */
+.eta-hero {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Departures-board line badge (mode-colored chip, 12pt 900 white uppercase) */
+.cm-line-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+/* Mode chip for leg strips */
+.cm-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.cm-leg-arrow {
+  color: #8A93A3;
+  font-weight: 700;
+  padding: 0 2px;
+  user-select: none;
+}
+
+/* Departure tick cross-fade (150ms) when minutes change */
+@keyframes et-departure-tick {
+  from { opacity: 0.3; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.departure-tick { animation: et-departure-tick 150ms ease-out; }
+
+/* Route tag pill ("Fastest"/"Cheapest" style) */
+.cm-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Toast slide-in used by citymapper/Toast.tsx */
+@keyframes et-toast-in-up {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-toastIn { animation: et-toast-in-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
