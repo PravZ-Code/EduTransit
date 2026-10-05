@@ -8,6 +8,7 @@ interface DisruptionBannerProps {
   subtext?: string;
   severe?: boolean;
   onDismiss?: () => void;
+  onClick?: () => void;
   className?: string;
 }
 
@@ -25,6 +26,7 @@ export function DisruptionBanner({
   subtext,
   severe = false,
   onDismiss,
+  onClick,
   className = "",
 }: DisruptionBannerProps) {
   const color = severe ? "#E8453C" : "#FF8A00";
@@ -32,6 +34,7 @@ export function DisruptionBanner({
 
   return (
     <div
+      onClick={onClick}
       style={{
         backgroundColor: bg,
         borderColor: color,
