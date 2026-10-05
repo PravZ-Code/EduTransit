@@ -36,6 +36,9 @@ import {
   Filter,
   Check,
   Zap,
+  Lock,
+  EyeOff,
+  MessageSquare,
 } from "lucide-react";
 import { PortSwitcherHeader } from "./PortSwitcherHeader";
 import { GoButton } from "./citymapper/GoButton";
@@ -82,6 +85,21 @@ interface IncidentRecord {
   location: string;
   time: string;
   status: "ACTIVE" | "RESOLVED";
+}
+
+interface GrievanceRecord {
+  id: string;
+  ticketId: string;
+  studentAlias: string;
+  category: string;
+  busId: string;
+  routeId: string;
+  description: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  isAnonymous: boolean;
+  time: string;
+  status: "OPEN" | "INVESTIGATING" | "RESOLVED";
+  resolutionNotes?: string;
 }
 
 const INITIAL_ROUTES: RouteItem[] = [
@@ -238,6 +256,50 @@ const INITIAL_INCIDENTS: IncidentRecord[] = [
   { id: "inc_03", busId: "bus_01", type: "Early Departure Prevented (Hold Banner Engaged)", severity: "LOW", location: "Thiruninravur Depot", time: "06:58 AM", status: "RESOLVED" },
 ];
 
+const INITIAL_GRIEVANCES: GrievanceRecord[] = [
+  {
+    id: "g_1",
+    ticketId: "CMP-2026-104",
+    studentAlias: "🔒 Anonymous Student #49",
+    category: "Rash Driving / Overspeeding",
+    busId: "bus_01",
+    routeId: "NC-1",
+    description: "Driver exceeded 45 km/h on Avadi bypass ramp during morning hours without slowing down.",
+    severity: "HIGH",
+    isAnonymous: true,
+    time: "07:35 AM",
+    status: "INVESTIGATING",
+    resolutionNotes: "Contractor SLA penalty issued to Driver Rajesh K.",
+  },
+  {
+    id: "g_2",
+    ticketId: "CMP-2026-105",
+    studentAlias: "🔒 Anonymous Student #12",
+    category: "Overcrowding & Standee Surge",
+    busId: "bus_02",
+    routeId: "SC-2",
+    description: "South quad shuttle was completely full; more than 10 students had to wait 25 mins for next bus.",
+    severity: "MEDIUM",
+    isAnonymous: true,
+    time: "07:42 AM",
+    status: "OPEN",
+  },
+  {
+    id: "g_3",
+    ticketId: "CMP-2026-106",
+    studentAlias: "Aditya Verma (Confidential to Ombudsman)",
+    category: "Unannounced 15-min Delay",
+    busId: "bus_03",
+    routeId: "EC-4",
+    description: "Morning departure from Pine Crest was delayed by 18 mins without ETA push update.",
+    severity: "LOW",
+    isAnonymous: false,
+    time: "Yesterday",
+    status: "RESOLVED",
+    resolutionNotes: "Railway gate closure verified. Automated delay push notifications recalibrated.",
+  },
+];
+
 export function SupervisorDashboard() {
   const { showToast } = useToast();
   const [activeNav, setActiveNav] = useState("Dashboard");
@@ -254,7 +316,24 @@ export function SupervisorDashboard() {
   // Entities
   const [students, setStudents] = useState<StudentRecord[]>(INITIAL_STUDENTS);
   const [incidents, setIncidents] = useState<IncidentRecord[]>(INITIAL_INCIDENTS);
+  const [grievances, setGrievances] = useState<GrievanceRecord[]>(INITIAL_GRIEVANCES);
+  const [incidentSubTab, setIncidentSubTab] = useState<"FLEET" | "GRIEVANCES">("FLEET");
   const [studentFilter, setStudentFilter] = useState<"ALL" | "BOARDED" | "WAITING" | "ABSENT">("ALL");
+
+  const resolveGrievance = async (ticketId: string) => {
+    await postJson("/complaints/resolve", {
+      ticket_id: ticketId,
+      resolution_notes: "Ombudsman inquiry completed. Contractor SLA deduction recorded.",
+    });
+    setGrievances((prev) =>
+      prev.map((g) =>
+        g.ticketId === ticketId
+          ? { ...g, status: "RESOLVED", resolutionNotes: "Ombudsman inquiry completed. Contractor SLA deduction recorded." }
+          : g
+      )
+    );
+    showToast("Grievance Resolved", `Ticket ${ticketId} resolved with contractor notice.`, "success");
+  };
 
   // Modals & Panels
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -1247,79 +1326,225 @@ export function SupervisorDashboard() {
             {/* 5. INCIDENTS VIEW */}
             {activeNav === "Incidents" && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-extrabold text-[#ECEEF3]">Real-Time Incident Triage</h2>
-                    <p className="text-xs text-[#98A0AE]">Corridor deviations, unscheduled halts & emergency alarms</p>
+                    <h2 className="text-xl font-extrabold text-[#ECEEF3]">Real-Time Incident & Grievance Triage</h2>
+                    <p className="text-xs text-[#98A0AE]">Corridor deviations, safety alarms, and student confidential grievances</p>
                   </div>
-                  <button
-                    onClick={() => setActiveModal("Emergency SOS Alarm Trigger")}
-                    className="px-3.5 py-2 rounded-xl bg-[#E8453C] text-white font-bold text-xs hover:bg-[#D4342B] transition flex items-center gap-1.5"
-                  >
-                    <Siren className="w-4 h-4" />
-                    Trigger SOS Drill
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {/* Subtab Toggle */}
+                    <div
+                      style={{ backgroundColor: "#15171F", borderColor: "#282C38" }}
+                      className="p-1 rounded-xl border flex items-center gap-1 text-xs"
+                    >
+                      <button
+                        onClick={() => setIncidentSubTab("FLEET")}
+                        style={{
+                          backgroundColor: incidentSubTab === "FLEET" ? "#2B5BFF" : "transparent",
+                          color: incidentSubTab === "FLEET" ? "#FFFFFF" : "#98A0AE",
+                        }}
+                        className="px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>Fleet Alarms ({incidents.filter((i) => i.status === "ACTIVE").length})</span>
+                      </button>
+                      <button
+                        onClick={() => setIncidentSubTab("GRIEVANCES")}
+                        style={{
+                          backgroundColor: incidentSubTab === "GRIEVANCES" ? "#00C281" : "transparent",
+                          color: incidentSubTab === "GRIEVANCES" ? "#003322" : "#98A0AE",
+                        }}
+                        className="px-3 py-1.5 rounded-lg font-black transition flex items-center gap-1.5"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Student Grievances ({grievances.filter((g) => g.status !== "RESOLVED").length})</span>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => setActiveModal("Emergency SOS Alarm Trigger")}
+                      className="px-3.5 py-2 rounded-xl bg-[#E8453C] text-white font-bold text-xs hover:bg-[#D4342B] transition flex items-center gap-1.5"
+                    >
+                      <Siren className="w-4 h-4" />
+                      Trigger SOS Drill
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {incidents.map((inc) => (
-                    <div
-                      key={inc.id}
-                      style={{ backgroundColor: "#15171F", borderColor: "#282C38" }}
-                      className="p-5 rounded-[18px] border flex flex-wrap items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-[12px] flex items-center justify-center font-bold text-white ${
-                            inc.severity === "HIGH" || inc.severity === "CRITICAL"
-                              ? "bg-[#E8453C]"
-                              : "bg-[#FF8A00]"
-                          }`}
-                        >
-                          <AlertTriangle className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-extrabold text-sm text-[#ECEEF3]">{inc.type}</h3>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E212B] text-[#98A0AE]">
-                              {inc.time}
-                            </span>
+                {/* Subtab 1: Fleet Incidents */}
+                {incidentSubTab === "FLEET" ? (
+                  <div className="space-y-3">
+                    {incidents.map((inc) => (
+                      <div
+                        key={inc.id}
+                        style={{ backgroundColor: "#15171F", borderColor: "#282C38" }}
+                        className="p-5 rounded-[18px] border flex flex-wrap items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-[12px] flex items-center justify-center font-bold text-white ${
+                              inc.severity === "HIGH" || inc.severity === "CRITICAL"
+                                ? "bg-[#E8453C]"
+                                : "bg-[#FF8A00]"
+                            }`}
+                          >
+                            <AlertTriangle className="w-5 h-5" />
                           </div>
-                          <p className="text-xs text-[#98A0AE]">
-                            Vehicle: <strong className="text-white">{inc.busId}</strong> · Location: {inc.location}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-extrabold text-sm text-[#ECEEF3]">{inc.type}</h3>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E212B] text-[#98A0AE]">
+                                {inc.time}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[#98A0AE]">
+                              Vehicle: <strong className="text-white">{inc.busId}</strong> · Location: {inc.location}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {inc.status === "ACTIVE" ? (
+                            <>
+                              <button
+                                onClick={() => resolveIncident(inc.id)}
+                                className="px-3 py-1.5 rounded-xl bg-[#00C281] text-[#003322] font-black text-xs hover:bg-[#00D890] transition"
+                              >
+                                Resolve Incident
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedBusId(inc.busId);
+                                  setActiveModal("Emergency Standby Bus Dispatch");
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-[#2B5BFF] text-white font-bold text-xs hover:bg-[#1E4BEB] transition"
+                              >
+                                Dispatch Standby
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs font-bold text-[#00C281] flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" />
+                              Resolved
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Subtab 2: Student Privacy Grievances (Ombudsman Queue) */
+                  <div className="space-y-3.5">
+                    <div className="p-4 rounded-xl bg-[#00C281]/10 border border-[#00C281]/30 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Lock className="w-5 h-5 text-[#00C281]" />
+                        <div>
+                          <h4 className="font-extrabold text-xs text-[#ECEEF3]">
+                            Statutory Privacy Guarantee (Ombudsman View)
+                          </h4>
+                          <p className="text-[11px] text-[#98A0AE]">
+                            Student identities marked as Anonymous are cryptographically masked. Zero retaliation invariant strictly enforced.
                           </p>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        {inc.status === "ACTIVE" ? (
-                          <>
-                            <button
-                              onClick={() => resolveIncident(inc.id)}
-                              className="px-3 py-1.5 rounded-xl bg-[#00C281] text-[#003322] font-black text-xs hover:bg-[#00D890] transition"
-                            >
-                              Resolve Incident
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedBusId(inc.busId);
-                                setActiveModal("Emergency Standby Bus Dispatch");
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-[#2B5BFF] text-white font-bold text-xs hover:bg-[#1E4BEB] transition"
-                            >
-                              Dispatch Standby
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs font-bold text-[#00C281] flex items-center gap-1">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Resolved
-                          </span>
-                        )}
-                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-[#00C281]/20 text-[#00C281] border border-[#00C281]/40">
+                        OMBUDSMAN SECURE DESK
+                      </span>
                     </div>
-                  ))}
-                </div>
+
+                    <div className="space-y-3">
+                      {grievances.map((g) => (
+                        <div
+                          key={g.id}
+                          style={{ backgroundColor: "#15171F", borderColor: "#282C38" }}
+                          className="p-5 rounded-[18px] border space-y-3 transition hover:border-[#4D7BFF]"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-[#2B5BFF]/15 text-[#4D7BFF] border border-[#2B5BFF]/30">
+                                {g.ticketId}
+                              </span>
+                              <h3 className="font-extrabold text-sm text-[#ECEEF3]">
+                                {g.category}
+                              </h3>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                  g.severity === "HIGH" || g.severity === "CRITICAL"
+                                    ? "bg-[#E8453C]/20 text-[#E8453C]"
+                                    : "bg-[#FFB400]/20 text-[#FFB400]"
+                                }`}
+                              >
+                                {g.severity} URGENCY
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-mono text-[#98A0AE]">
+                                {g.time}
+                              </span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                  g.status === "RESOLVED"
+                                    ? "bg-[#00C281]/20 text-[#00C281]"
+                                    : g.status === "INVESTIGATING"
+                                    ? "bg-[#FFB400]/20 text-[#FFB400]"
+                                    : "bg-[#2B5BFF]/20 text-[#4D7BFF]"
+                                }`}
+                              >
+                                {g.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-xs text-[#98A0AE]">
+                            <span className="flex items-center gap-1.5 font-bold text-[#ECEEF3]">
+                              <EyeOff className="w-3.5 h-3.5 text-[#00C281]" />
+                              {g.studentAlias}
+                            </span>
+                            <span>•</span>
+                            <span>Shuttle Route: <strong className="text-white">{g.routeId}</strong></span>
+                            <span>•</span>
+                            <span>Vehicle: <strong className="text-white">{g.busId}</strong></span>
+                          </div>
+
+                          <div className="p-3 bg-[#0C0E14] rounded-xl border border-[#282C38] text-xs text-[#ECEEF3] leading-relaxed">
+                            "{g.description}"
+                          </div>
+
+                          {g.resolutionNotes && (
+                            <div className="p-2.5 bg-[#00C281]/10 rounded-xl border border-[#00C281]/30 text-xs text-[#00C281] flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                              <span>{g.resolutionNotes}</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-[#282C38] flex items-center justify-between">
+                            <span className="text-[11px] text-[#98A0AE]">
+                              Ombudsman Action Required: Review speed telemetry / contractor contract.
+                            </span>
+
+                            {g.status !== "RESOLVED" ? (
+                              <button
+                                onClick={() => resolveGrievance(g.ticketId)}
+                                style={{ backgroundColor: "#00C281", color: "#003322" }}
+                                className="px-3.5 py-1.5 rounded-xl font-black text-xs hover:bg-[#00D890] transition flex items-center gap-1.5 shadow-md active:scale-95"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Resolve & Deduct Contractor SLA Penalty</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs font-bold text-[#00C281] flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Ombudsman Verified & Closed</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
